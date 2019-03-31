@@ -1,0 +1,9 @@
+id;username;nickname;password;activated;deleted;created_by;created_date;last_modified_by;last_modified_date
+1;admin;admin;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
+2;manager1;manager1;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
+3;manager2;manager2;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
+4;user1;user1;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
+5;hr1;hr1;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
+6;hr2;hr2;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
+7;hr3;hr3;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
+8;leader1;leader1;$2a$10$XOquEscerSDVQgkfP.tqMOqY.1.bpb/DEgVjxSfMIj6tkIGZXUR1m;true;false;1;2018-04-06 21:25:00;1;2018-04-06 21:25:00
