@@ -1,0 +1,79 @@
+group 'com.wuspace'
+version '1.0-SNAPSHOT'
+description = 'activiti'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
+        maven { url 'http://maven.oschina.net/content/groups/public/' }
+    }
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${spring_boot_version}"
+    }
+}
+
+apply plugin: 'idea'
+apply plugin: 'maven'
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenLocal()
+    maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
+    maven { url 'http://maven.oschina.net/content/groups/public/' }
+}
+
+dependencies {
+    // Spring Boot
+    compile "org.springframework.boot:spring-boot-devtools"
+    compile "org.springframework.boot:spring-boot-starter-aop"
+    compile "org.springframework.boot:spring-boot-starter-test"
+    compile "org.springframework.boot:spring-boot-starter-actuator"
+    compile "org.springframework.boot:spring-boot-starter-security"
+    compile "org.springframework.boot:spring-boot-starter-cache"
+    compile "org.springframework.boot:spring-boot-starter-data-jpa"
+    compile("org.springframework.boot:spring-boot-starter-web") {
+        exclude module: 'spring-boot-starter-tomcat'
+    }
+    compile("org.springframework.boot:spring-boot-starter-undertow")
+
+    runtime "com.h2database:h2"
+    compile "mysql:mysql-connector-java"
+    compile "org.hibernate:hibernate-jcache:${hibernate_version}"
+    compile "org.hibernate:hibernate-search-engine:${hibernate_search_version}"
+    compile "org.hibernate:hibernate-java8:5.1.2.Final"
+    compile("com.zaxxer:HikariCP:${hikaricp_version}") {
+        exclude(module: 'tools')
+    }
+    compile "org.liquibase:liquibase-core:${liquibase_version}"
+
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-json-org:2.8.8"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-hppc:2.8.8"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.8.8"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-hibernate5:2.8.8"
+    compile "com.fasterxml.jackson.core:jackson-annotations"
+    compile "com.fasterxml.jackson.core:jackson-databind"
+    compile "com.fasterxml.jackson.module:jackson-module-afterburner:2.8.8"
+    compile "com.fasterxml.jackson.module:jackson-module-parameter-names:2.8.8"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:2.8.8"
+    compile "org.zalando:problem-spring-web:0.24.0-RC.0"
+
+    // Apache Commons
+    compile "org.apache.commons:commons-lang3:${commons_lang_version}"
+    compile "commons-io:commons-io:${apache_commons_io_version}"
+    compile "commons-logging:commons-logging:${commons_logging_version}"
+    compile("commons-beanutils:commons-beanutils:${commons_beanutils_version}") {
+        exclude(module: 'commons-logging')
+    }
+
+    compile "org.activiti:activiti-spring-boot-starter-basic:${activiti_version}"
+    compile "com.google.guava:guava:${google_guava_version}"
+    compile "org.projectlombok:lombok:${lombok_version}"
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+
+}

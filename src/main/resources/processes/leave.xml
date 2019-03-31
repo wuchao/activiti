@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:activiti="http://activiti.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="http://www.activiti.org/processdef">
+  <process id="leave" name="请假" isExecutable="true">
+    <startEvent id="startEvent1"></startEvent>
+    <userTask id="user_apply" name="请假申请">
+      <extensionElements>
+        <activiti:executionListener event="start" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:executionListener event="end" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:executionListener event="take" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:taskListener event="create" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="assignment" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="complete" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="delete" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+      </extensionElements>
+    </userTask>
+    <userTask id="hrs_approve" name="hr 审批">
+      <extensionElements>
+        <activiti:executionListener event="start" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:executionListener event="end" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:executionListener event="take" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:taskListener event="create" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="assignment" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="complete" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="delete" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+      </extensionElements>
+    </userTask>
+    <userTask id="managers_approve" name="manager 审批" activiti:assignee="${managerId}">
+      <extensionElements>
+        <activiti:executionListener event="start" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:executionListener event="end" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:executionListener event="take" class="com.github.wuchao.activiti.listener.LeaveApplyExecutionListener"></activiti:executionListener>
+        <activiti:taskListener event="create" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="assignment" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="complete" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <activiti:taskListener event="delete" class="com.github.wuchao.activiti.listener.LeaveApplyTaskListener"></activiti:taskListener>
+        <modeler:initiator-can-complete xmlns:modeler="http://activiti.com/modeler"><![CDATA[false]]></modeler:initiator-can-complete>
+      </extensionElements>
+      <multiInstanceLoopCharacteristics isSequential="false" activiti:collection="managerIds" activiti:elementVariable="managerId">
+        <completionCondition>${nrOfCompletedInstances == nrOfInstances}</completionCondition>
+      </multiInstanceLoopCharacteristics>
+    </userTask>
+    <exclusiveGateway id="sid-A43BD323-C5B0-495A-B0BB-EB1B71D32BD4"></exclusiveGateway>
+    <endEvent id="sid-7205DF8C-42F6-48EF-88BA-2504233EF933"></endEvent>
+    <sequenceFlow id="sid-A93E58B7-88FE-4BAF-AC22-72EAFA40BE6A" sourceRef="startEvent1" targetRef="user_apply"></sequenceFlow>
+    <sequenceFlow id="sid-4DFEA3E6-8F41-4FCD-AF91-AB48AB15BAA0" sourceRef="user_apply" targetRef="hrs_approve"></sequenceFlow>
+    <sequenceFlow id="sid-25A713AE-D967-4AA3-9AE5-7E1E844920A2" sourceRef="hrs_approve" targetRef="sid-A43BD323-C5B0-495A-B0BB-EB1B71D32BD4"></sequenceFlow>
+    <sequenceFlow id="sid-20FD759A-939F-4D31-A542-C3103E662CA3" sourceRef="managers_approve" targetRef="sid-7205DF8C-42F6-48EF-88BA-2504233EF933"></sequenceFlow>
+    <sequenceFlow id="sid-CC35E3AF-9532-4CC7-B15A-EB29F2A4087F" sourceRef="sid-A43BD323-C5B0-495A-B0BB-EB1B71D32BD4" targetRef="managers_approve">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${pass}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="sid-17CA439F-CC7A-4D88-9181-6C809559E424" sourceRef="sid-A43BD323-C5B0-495A-B0BB-EB1B71D32BD4" targetRef="sid-7205DF8C-42F6-48EF-88BA-2504233EF933">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${!pass}]]></conditionExpression>
+    </sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_leave">
+    <bpmndi:BPMNPlane bpmnElement="leave" id="BPMNPlane_leave">
+      <bpmndi:BPMNShape bpmnElement="startEvent1" id="BPMNShape_startEvent1">
+        <omgdc:Bounds height="30.0" width="30.0" x="45.0" y="150.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="user_apply" id="BPMNShape_user_apply">
+        <omgdc:Bounds height="80.0" width="100.0" x="120.0" y="125.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="hrs_approve" id="BPMNShape_hrs_approve">
+        <omgdc:Bounds height="80.0" width="100.0" x="270.0" y="125.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="managers_approve" id="BPMNShape_managers_approve">
+        <omgdc:Bounds height="80.0" width="100.0" x="510.0" y="120.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="sid-A43BD323-C5B0-495A-B0BB-EB1B71D32BD4" id="BPMNShape_sid-A43BD323-C5B0-495A-B0BB-EB1B71D32BD4">
+        <omgdc:Bounds height="40.0" width="40.0" x="420.0" y="145.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="sid-7205DF8C-42F6-48EF-88BA-2504233EF933" id="BPMNShape_sid-7205DF8C-42F6-48EF-88BA-2504233EF933">
+        <omgdc:Bounds height="28.0" width="28.0" x="660.0" y="146.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="sid-25A713AE-D967-4AA3-9AE5-7E1E844920A2" id="BPMNEdge_sid-25A713AE-D967-4AA3-9AE5-7E1E844920A2">
+        <omgdi:waypoint x="370.0" y="165.0"></omgdi:waypoint>
+        <omgdi:waypoint x="420.0" y="165.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="sid-20FD759A-939F-4D31-A542-C3103E662CA3" id="BPMNEdge_sid-20FD759A-939F-4D31-A542-C3103E662CA3">
+        <omgdi:waypoint x="610.0" y="160.0"></omgdi:waypoint>
+        <omgdi:waypoint x="660.0" y="160.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="sid-17CA439F-CC7A-4D88-9181-6C809559E424" id="BPMNEdge_sid-17CA439F-CC7A-4D88-9181-6C809559E424">
+        <omgdi:waypoint x="440.5" y="184.5"></omgdi:waypoint>
+        <omgdi:waypoint x="440.5" y="269.0"></omgdi:waypoint>
+        <omgdi:waypoint x="674.0" y="269.0"></omgdi:waypoint>
+        <omgdi:waypoint x="674.0" y="174.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="sid-CC35E3AF-9532-4CC7-B15A-EB29F2A4087F" id="BPMNEdge_sid-CC35E3AF-9532-4CC7-B15A-EB29F2A4087F">
+        <omgdi:waypoint x="459.62" y="164.62"></omgdi:waypoint>
+        <omgdi:waypoint x="510.0" y="162.30125523012552"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="sid-A93E58B7-88FE-4BAF-AC22-72EAFA40BE6A" id="BPMNEdge_sid-A93E58B7-88FE-4BAF-AC22-72EAFA40BE6A">
+        <omgdi:waypoint x="75.0" y="165.0"></omgdi:waypoint>
+        <omgdi:waypoint x="120.0" y="165.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="sid-4DFEA3E6-8F41-4FCD-AF91-AB48AB15BAA0" id="BPMNEdge_sid-4DFEA3E6-8F41-4FCD-AF91-AB48AB15BAA0">
+        <omgdi:waypoint x="220.0" y="165.0"></omgdi:waypoint>
+        <omgdi:waypoint x="270.0" y="165.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

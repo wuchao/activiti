@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.4.xsd">
+
+    <property name="now" value="now()" dbms="h2,mysql"/>
+    <property name="now" value="current_timestamp" dbms="postgresql"/>
+    <property name="autoIncrement" value="true"/>
+
+    <!--
+        add entity LeaveApplication.
+    -->
+    <changeSet id="20190331141100-1" author="wu_c">
+
+        <createTable tableName="leave_application">
+            <column name="id" type="bigint" autoIncrement="${autoIncrement}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <!-- 不能使用 type 关键字命名表属性 -->
+            <column name="leave_type" type="varchar(50)"/>
+            <column name="reason" type="varchar(500)"/>
+            <column name="password" type="varchar(60)"/>
+            <column name="start_time" type="datetime"/>
+            <column name="end_time" type="datetime"/>
+            <column name="status" type="varchar(20)"/>
+            <column name="applicant_id" type="bigint"/>
+
+            <column name="deleted" type="boolean" valueBoolean="false"/>
+            <column name="created_by" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_date" type="timestamp" defaultValueDate="${now}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_modified_by" type="varchar(50)"/>
+            <column name="last_modified_date" type="timestamp"/>
+        </createTable>
+
+    </changeSet>
+
+</databaseChangeLog>
