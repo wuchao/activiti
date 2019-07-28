@@ -41,6 +41,11 @@ dependencies {
     }
     compile("org.springframework.boot:spring-boot-starter-undertow")
 
+    compile "io.springfox:springfox-swagger-ui:${springfox_version}"
+    compile("io.springfox:springfox-swagger2:${springfox_version}") {
+        exclude module: 'mapstruct'
+    }
+
     runtime "com.h2database:h2"
     compile "mysql:mysql-connector-java"
     compile "org.hibernate:hibernate-jcache:${hibernate_version}"

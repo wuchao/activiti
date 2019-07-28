@@ -1,15 +1,11 @@
 package com.github.wuchao.activiti.service;
 
 import com.github.wuchao.activiti.common.Constants;
-import com.github.wuchao.activiti.common.WorkFlowConstants;
 import com.github.wuchao.activiti.domain.UserTask;
 import com.github.wuchao.activiti.repository.UserTaskRepository;
-import com.github.wuchao.activiti.security.SecurityUtils;
 import com.github.wuchao.activiti.service.dto.ActivitiTaskDTO;
 import lombok.extern.slf4j.Slf4j;
-import org.activiti.bpmn.model.BpmnModel;
 import org.activiti.bpmn.model.FlowNode;
-import org.activiti.bpmn.model.Process;
 import org.activiti.bpmn.model.SequenceFlow;
 import org.activiti.engine.*;
 import org.activiti.engine.history.HistoricTaskInstance;
@@ -27,8 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -62,7 +56,7 @@ public class WorkflowService {
     private UserTaskRepository userTaskRepository;
 
     @Autowired
-    private UserTaskService userTaskService;
+    private UserTaskAndMessageService userTaskAndMessageService;
 
     /**
      * 启动流程
@@ -220,6 +214,15 @@ public class WorkflowService {
                 Long.valueOf(businessKey.substring(businessKey.lastIndexOf("_") + 1)));
     }
 
+    public ActivitiTaskDTO getHistoricTask(String taskId) {
+        HistoricTaskInstance hti = historyService.createHistoricTaskInstanceQuery()
+                .taskId(taskId)
+                .includeProcessVariables()
+                .includeTaskLocalVariables()
+                .singleResult();
+        return hti != null ? ActivitiTaskDTO.init(hti) : null;
+    }
+
     /**
      * 过滤历史任务
      *
@@ -246,103 +249,61 @@ public class WorkflowService {
     }
 
     /**
-     * 流程回退到上一节点
-     *
-     * @param taskId
-     */
-    public void reverse2(String taskId) {
-        HistoricTaskInstance task = historyService.createHistoricTaskInstanceQuery().taskId(taskId).singleResult();
-        if (null == task) {
-            throw new RuntimeException("无效任务ID[ " + taskId + " ]");
-        }
-        ProcessInstance processInstance = runtimeService.createProcessInstanceQuery().processInstanceId(task.getProcessInstanceId()).singleResult();
-        if (null == processInstance) {
-            throw new RuntimeException("该流程已完成!无法回退");
-        }
-
-        // 获取流程定义对象
-        BpmnModel bpmnModel = repositoryService.getBpmnModel(task.getProcessDefinitionId());
-        Process process = bpmnModel.getProcesses().get(0);
-
-        List<Task> taskList = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
-
-        FlowNode sourceNode = (FlowNode) process.getFlowElement(task.getTaskDefinitionKey());
-        taskList.forEach(obj -> {
-            FlowNode currentNode = (FlowNode) process.getFlowElement(obj.getTaskDefinitionKey());
-            // 获取原本流程连线
-            List<SequenceFlow> outComingSequenceFlows = currentNode.getOutgoingFlows();
-
-            // 配置反转流程连线
-            SequenceFlow sequenceFlow = new SequenceFlow();
-            sequenceFlow.setTargetFlowElement(sourceNode);
-            sequenceFlow.setSourceFlowElement(currentNode);
-            sequenceFlow.setId("callback-flow");
-
-            List<SequenceFlow> newOutComingSequenceFlows = new ArrayList<>();
-            newOutComingSequenceFlows.add(sequenceFlow);
-            currentNode.setOutgoingFlows(newOutComingSequenceFlows);
-
-            // 配置任务审批人
-            Map<String, Object> variables = new HashMap<>(1);
-            variables.put(WorkFlowConstants.DEFAULT_USER_TASK_ASSIGNEE, SecurityUtils.getCurrentUser().getUserId());
-            // 完成任务
-            taskService.complete(obj.getId(), variables);
-            // 复原流程
-            currentNode.setOutgoingFlows(outComingSequenceFlows);
-        });
-    }
-
-    /**
+     * 流程回撤到前面任意一个 task 节点
      * https://blog.csdn.net/taisuiyu6397/article/details/89448217
      * https://blog.csdn.net/qq_29374433/article/details/80922795
      *
      * @param taskId
      */
     @Transactional(rollbackFor = Exception.class)
-    public void reverse(String taskId) {
-        Task task = getTask(taskId);
-        if (task != null) {
-            List<HistoricTaskInstance> historicTasks = historyService.createHistoricTaskInstanceQuery()
-                    .processInstanceId(task.getProcessInstanceId())
-                    .orderByTaskCreateTime().desc()
-                    .list();
-            if (historicTasks != null && historicTasks.size() > 1) {
-                String prevTaskKey = historicTasks.get(1).getTaskDefinitionKey();
+    public void reverse(String taskId, String destinationTaskDefinitionKey) {
+        if (StringUtils.isNotBlank(taskId) && StringUtils.isNotBlank(destinationTaskDefinitionKey)) {
+            ActivitiTaskDTO task = getHistoricTask(taskId);
+            if (task != null) {
+                List<HistoricTaskInstance> historicTasks = historyService.createHistoricTaskInstanceQuery()
+                        .processInstanceId(task.getProcessInstanceId())
+                        .orderByTaskCreateTime().desc()
+                        .list();
+                if (historicTasks != null && historicTasks.size() > 1) {
+                    historicTasks.forEach(historicTask -> {
+                        if (destinationTaskDefinitionKey.equals(historicTask.getTaskDefinitionKey())) {
+                            // 当前任务
+                            ActivitiTaskDTO currentTask = getHistoricTask(taskId);
+                            // 获取流程定义
+                            org.activiti.bpmn.model.Process process =
+                                    repositoryService.getBpmnModel(currentTask.getProcessDefinitionId()).getMainProcess();
+                            // 获取目标节点定义
+                            FlowNode targetNode = (FlowNode) process.getFlowElementMap().get(destinationTaskDefinitionKey);
+                            // 删除当前运行任务
+                            String executionEntityId = managementService.executeCommand(new DeleteTaskCmd(currentTask.getTaskId()));
+                            // 流程执行到来源节点
 
-                // 当前任务
-                Task currentTask = taskService.createTaskQuery().taskId(taskId).singleResult();
-                // 获取流程定义
-                org.activiti.bpmn.model.Process process =
-                        repositoryService.getBpmnModel(currentTask.getProcessDefinitionId()).getMainProcess();
-                // 获取目标节点定义
-                FlowNode targetNode = (FlowNode) process.getFlowElement(prevTaskKey);
-                // 删除当前运行任务
-                String executionEntityId = managementService.executeCommand(new DeleteTaskCmd(currentTask.getId()));
-                // 流程执行到来源节点
-                try {
-                    // 流程执行到来源节点
-                    managementService.executeCommand(new SetFLowNodeAndGoCmd(targetNode, executionEntityId));
+                            try {
+                                // 流程执行到来源节点
+                                managementService.executeCommand(new SetFLowNodeAndGoCmd(targetNode, executionEntityId));
 
-                    // 关闭业务中的个人任务
-                    userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(0).getId()).ifPresent(userTask -> {
-                        userTaskService.close(userTask.getId(), 2);
+                                // 关闭业务中的个人任务
+                                userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(0).getId()).ifPresent(userTask -> {
+                                    userTaskAndMessageService.delete(userTask.getId(), 2);
+                                });
+                                userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(1).getId()).ifPresent(userTask -> {
+                                    userTaskAndMessageService.delete(userTask.getId(), 2);
+                                });
+
+                            } catch (Exception e) {
+                                // TODO: handle exception
+                                e.printStackTrace();
+                            }
+                        }
                     });
-                    userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(1).getId()).ifPresent(userTask -> {
-                        userTaskService.close(userTask.getId(), 2);
-                    });
-
-                } catch (Exception e) {
-                    // TODO: handle exception
-                    e.printStackTrace();
                 }
-
             }
         }
     }
 
     /**
      * 删除当前运行时任务命令，并返回当前任务的执行对象id
-     * 这里继承了NeedsActiveTaskCmd，主要时很多跳转业务场景下，要求不能时挂起任务。可以直接继承Command即可
+     * 这里继承了 NeedsActiveTaskCmd，主要是很多跳转业务场景下，要求不能是挂起任务。可以直接继承 Command 即可
      */
     @SuppressWarnings("serial")
     public class DeleteTaskCmd extends NeedsActiveTaskCmd<String> {
@@ -368,7 +329,7 @@ public class WorkflowService {
     }
 
     /**
-     * 根据提供节点和执行对象id，进行跳转命令
+     * 根据提供节点和执行对象 id，进行跳转命令
      */
     public class SetFLowNodeAndGoCmd implements Command<Void> {
         private FlowNode flowElement;

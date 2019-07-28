@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class UserTaskService {
+public class UserTaskAndMessageService {
 
     @Autowired
     private UserTaskRepository userTaskRepository;
@@ -110,19 +110,24 @@ public class UserTaskService {
     }
 
     /**
-     * 流程回退到上一节点
+     * 流程回撤到前面任意一个 task 节点
      *
-     * @param userTaskId
+     * @param taskId                       流程节点任务 ID
+     * @param destinationTaskDefinitionKey 打回到的目标任务节点的 taskDefinitionKey
      */
     @Transactional(rollbackFor = Exception.class)
-    public void reverse(Long userTaskId) {
-        userTaskRepository.findById(userTaskId).ifPresent(userTask -> {
-            workflowService.reverse(userTask.getTaskId());
-        });
+    public void reverse(String taskId, String destinationTaskDefinitionKey) {
+        workflowService.reverse(taskId, destinationTaskDefinitionKey);
     }
 
+    /**
+     * 删除用户任务和消息
+     *
+     * @param userTaskId
+     * @param status
+     */
     @Transactional(rollbackFor = Exception.class)
-    public void close(Long userTaskId, Integer status) {
+    public void delete(Long userTaskId, Integer status) {
         userTaskRepository.findByIdAndDeletedIsNull(userTaskId).ifPresent(userTask -> {
             userTask.setDeleted(1);
             userTask.setStatus(status);

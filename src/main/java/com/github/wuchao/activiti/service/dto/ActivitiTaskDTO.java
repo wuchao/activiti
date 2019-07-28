@@ -28,6 +28,9 @@ public class ActivitiTaskDTO implements Serializable {
     @JsonIgnore
     private String taskDefinitionKey;
 
+    @JsonIgnore
+    private String processDefinitionId;
+
     private String taskName;
 
     @JsonIgnore
@@ -54,11 +57,12 @@ public class ActivitiTaskDTO implements Serializable {
 
     public static ActivitiTaskDTO init(HistoricTaskInstance hti) {
         return ActivitiTaskDTO.builder()
-                .processInstanceId(hti.getProcessInstanceId())
-                .executionId(hti.getExecutionId())
                 .taskId(hti.getId())
                 .taskName(hti.getName())
+                .processDefinitionId(hti.getProcessDefinitionId())
+                .processInstanceId(hti.getProcessInstanceId())
                 .taskDefinitionKey(hti.getTaskDefinitionKey())
+                .executionId(hti.getExecutionId())
                 .owner(hti.getOwner())
                 .assignee(hti.getAssignee())
                 .createTime(hti.getCreateTime())
@@ -70,11 +74,12 @@ public class ActivitiTaskDTO implements Serializable {
 
     public static ActivitiTaskDTO init(Task hti) {
         return ActivitiTaskDTO.builder()
-                .processInstanceId(hti.getProcessInstanceId())
-                .executionId(hti.getExecutionId())
                 .taskId(hti.getId())
                 .taskName(hti.getName())
+                .processDefinitionId(hti.getProcessDefinitionId())
+                .processInstanceId(hti.getProcessInstanceId())
                 .taskDefinitionKey(hti.getTaskDefinitionKey())
+                .executionId(hti.getExecutionId())
                 .owner(hti.getOwner())
                 .assignee(hti.getAssignee())
                 .createTime(hti.getCreateTime())
