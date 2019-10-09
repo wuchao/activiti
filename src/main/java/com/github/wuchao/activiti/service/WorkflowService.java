@@ -249,53 +249,32 @@ public class WorkflowService {
     }
 
     /**
-     * 流程回撤到前面任意一个 task 节点
+     * 流程任务任意打回
      * https://blog.csdn.net/taisuiyu6397/article/details/89448217
      * https://blog.csdn.net/qq_29374433/article/details/80922795
      *
      * @param taskId
+     * @param destinationTaskDefinitionKey 打回到的目标任务节点的 taskDefinitionKey
      */
     @Transactional(rollbackFor = Exception.class)
     public void reverse(String taskId, String destinationTaskDefinitionKey) {
         if (StringUtils.isNotBlank(taskId) && StringUtils.isNotBlank(destinationTaskDefinitionKey)) {
-            ActivitiTaskDTO task = getHistoricTask(taskId);
+            Task task = getTask(taskId);
             if (task != null) {
-                List<HistoricTaskInstance> historicTasks = historyService.createHistoricTaskInstanceQuery()
-                        .processInstanceId(task.getProcessInstanceId())
-                        .orderByTaskCreateTime().desc()
-                        .list();
-                if (historicTasks != null && historicTasks.size() > 1) {
-                    historicTasks.forEach(historicTask -> {
-                        if (destinationTaskDefinitionKey.equals(historicTask.getTaskDefinitionKey())) {
-                            // 当前任务
-                            ActivitiTaskDTO currentTask = getHistoricTask(taskId);
-                            // 获取流程定义
-                            org.activiti.bpmn.model.Process process =
-                                    repositoryService.getBpmnModel(currentTask.getProcessDefinitionId()).getMainProcess();
-                            // 获取目标节点定义
-                            FlowNode targetNode = (FlowNode) process.getFlowElementMap().get(destinationTaskDefinitionKey);
-                            // 删除当前运行任务
-                            String executionEntityId = managementService.executeCommand(new DeleteTaskCmd(currentTask.getTaskId()));
-                            // 流程执行到来源节点
-
-                            try {
-                                // 流程执行到来源节点
-                                managementService.executeCommand(new SetFLowNodeAndGoCmd(targetNode, executionEntityId));
-
-                                // 关闭业务中的个人任务
-                                userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(0).getId()).ifPresent(userTask -> {
-                                    userTaskAndMessageService.delete(userTask.getId(), 2);
-                                });
-                                userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(1).getId()).ifPresent(userTask -> {
-                                    userTaskAndMessageService.delete(userTask.getId(), 2);
-                                });
-
-                            } catch (Exception e) {
-                                // TODO: handle exception
-                                e.printStackTrace();
-                            }
-                        }
-                    });
+                // 获取流程定义
+                org.activiti.bpmn.model.Process process =
+                        repositoryService.getBpmnModel(task.getProcessDefinitionId()).getMainProcess();
+                // 获取目标节点定义
+                FlowNode targetNode = (FlowNode) process.getFlowElementMap().get(destinationTaskDefinitionKey);
+                // 删除当前运行任务
+                String executionEntityId = managementService.executeCommand(new DeleteTaskCmd(taskId));
+                // 流程执行到来源节点
+                try {
+                    // 流程执行到来源节点
+                    managementService.executeCommand(new SetFLowNodeAndGoCmd(targetNode, executionEntityId));
+                } catch (Exception e) {
+                    // TODO: handle exception
+                    e.printStackTrace();
                 }
             }
         }
