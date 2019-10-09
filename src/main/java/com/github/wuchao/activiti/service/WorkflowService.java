@@ -6,15 +6,17 @@ import com.github.wuchao.activiti.repository.UserTaskRepository;
 import com.github.wuchao.activiti.service.dto.ActivitiTaskDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.activiti.bpmn.model.FlowNode;
+import org.activiti.bpmn.model.Process;
 import org.activiti.bpmn.model.SequenceFlow;
 import org.activiti.engine.*;
 import org.activiti.engine.history.HistoricTaskInstance;
+import org.activiti.engine.impl.cfg.IdGenerator;
+import org.activiti.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.activiti.engine.impl.cmd.NeedsActiveTaskCmd;
 import org.activiti.engine.impl.interceptor.Command;
 import org.activiti.engine.impl.interceptor.CommandContext;
-import org.activiti.engine.impl.persistence.entity.ExecutionEntity;
-import org.activiti.engine.impl.persistence.entity.TaskEntity;
-import org.activiti.engine.impl.persistence.entity.TaskEntityManagerImpl;
+import org.activiti.engine.impl.persistence.entity.*;
+import org.activiti.engine.runtime.Execution;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.activiti.engine.task.Task;
 import org.apache.commons.collections.CollectionUtils;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -249,53 +252,32 @@ public class WorkflowService {
     }
 
     /**
-     * 流程回撤到前面任意一个 task 节点
+     * 流程任务任意打回
      * https://blog.csdn.net/taisuiyu6397/article/details/89448217
      * https://blog.csdn.net/qq_29374433/article/details/80922795
      *
      * @param taskId
+     * @param destinationTaskDefinitionKey 打回到的目标任务节点的 taskDefinitionKey
      */
     @Transactional(rollbackFor = Exception.class)
     public void reverse(String taskId, String destinationTaskDefinitionKey) {
         if (StringUtils.isNotBlank(taskId) && StringUtils.isNotBlank(destinationTaskDefinitionKey)) {
-            ActivitiTaskDTO task = getHistoricTask(taskId);
+            Task task = getTask(taskId);
             if (task != null) {
-                List<HistoricTaskInstance> historicTasks = historyService.createHistoricTaskInstanceQuery()
-                        .processInstanceId(task.getProcessInstanceId())
-                        .orderByTaskCreateTime().desc()
-                        .list();
-                if (historicTasks != null && historicTasks.size() > 1) {
-                    historicTasks.forEach(historicTask -> {
-                        if (destinationTaskDefinitionKey.equals(historicTask.getTaskDefinitionKey())) {
-                            // 当前任务
-                            ActivitiTaskDTO currentTask = getHistoricTask(taskId);
-                            // 获取流程定义
-                            org.activiti.bpmn.model.Process process =
-                                    repositoryService.getBpmnModel(currentTask.getProcessDefinitionId()).getMainProcess();
-                            // 获取目标节点定义
-                            FlowNode targetNode = (FlowNode) process.getFlowElementMap().get(destinationTaskDefinitionKey);
-                            // 删除当前运行任务
-                            String executionEntityId = managementService.executeCommand(new DeleteTaskCmd(currentTask.getTaskId()));
-                            // 流程执行到来源节点
-
-                            try {
-                                // 流程执行到来源节点
-                                managementService.executeCommand(new SetFLowNodeAndGoCmd(targetNode, executionEntityId));
-
-                                // 关闭业务中的个人任务
-                                userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(0).getId()).ifPresent(userTask -> {
-                                    userTaskAndMessageService.delete(userTask.getId(), 2);
-                                });
-                                userTaskRepository.findByTaskIdAndDeletedIsNull(historicTasks.get(1).getId()).ifPresent(userTask -> {
-                                    userTaskAndMessageService.delete(userTask.getId(), 2);
-                                });
-
-                            } catch (Exception e) {
-                                // TODO: handle exception
-                                e.printStackTrace();
-                            }
-                        }
-                    });
+                // 获取流程定义
+                org.activiti.bpmn.model.Process process =
+                        repositoryService.getBpmnModel(task.getProcessDefinitionId()).getMainProcess();
+                // 获取目标节点定义
+                FlowNode targetNode = (FlowNode) process.getFlowElementMap().get(destinationTaskDefinitionKey);
+                // 删除当前运行任务
+                String executionEntityId = managementService.executeCommand(new DeleteTaskCmd(taskId));
+                // 流程执行到来源节点
+                try {
+                    // 流程执行到来源节点
+                    managementService.executeCommand(new SetFLowNodeAndGoCmd(targetNode, executionEntityId));
+                } catch (Exception e) {
+                    // TODO: handle exception
+                    e.printStackTrace();
                 }
             }
         }
@@ -355,6 +337,101 @@ public class WorkflowService {
                     executionEntity, true);
             return null;
         }
+    }
+
+
+    /**
+     * 动态地在会签任务在原基础上加处理人
+     *
+     * @param currentTaskId                当前流程任务 ID
+     * @param destinationTaskDefinitionKey 目标节点的 taskDefinitionKey
+     * @param assignees                    要添加的 assignee 集合
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void dynamicAddAssignees(String currentTaskId, String destinationTaskDefinitionKey, List<String> assignees) {
+        if (StringUtils.isNotBlank(currentTaskId) &&
+                StringUtils.isNotBlank(destinationTaskDefinitionKey) &&
+                CollectionUtils.isNotEmpty(assignees)) {
+
+            Task currentTask = getTask(currentTaskId);
+            if (currentTask != null) {
+                String executionId = currentTask.getExecutionId();
+                //获取流程定义
+                Process process = repositoryService.getBpmnModel(currentTask.getProcessDefinitionId()).getMainProcess();
+                //获取目标节点定义
+                FlowNode targetNode = (FlowNode) process.getFlowElement(destinationTaskDefinitionKey);
+                assignees.stream().forEach(assignee -> {
+                    managementService.executeCommand(new SetFlowNodeAssigneeCmd(executionId, assignee, targetNode));
+                });
+            }
+        }
+    }
+
+    public class SetFlowNodeAssigneeCmd implements Command<Void> {
+        protected String executionId;
+
+        protected String assignee;
+
+        protected FlowNode flowElement;
+
+
+        public SetFlowNodeAssigneeCmd(String executionId, String assignee, FlowNode flowElement) {
+            this.executionId = executionId;
+            this.assignee = assignee;
+            this.flowElement = flowElement;
+        }
+
+        @Override
+        public Void execute(CommandContext commandContext) {
+            ProcessEngineConfigurationImpl pec = commandContext.getProcessEngineConfiguration();
+            RuntimeService runtimeService = pec.getRuntimeService();
+            TaskService taskService = pec.getTaskService();
+            IdGenerator idGenerator = pec.getIdGenerator();
+            Execution execution = runtimeService.createExecutionQuery().executionId(executionId).singleResult();
+            ExecutionEntity parent = ((ExecutionEntity) execution).getParent();
+            Task newTask = taskService.createTaskQuery().executionId(executionId).singleResult();
+            ExecutionEntity newExecution = commandContext.getExecutionEntityManager().createChildExecution(parent);
+            newExecution.setScope(false);
+            newExecution.setSuspensionState(1);
+            newExecution.setCurrentFlowElement(flowElement);
+            TaskEntity t = (TaskEntity) newTask;
+            TaskEntity taskEntity = new TaskEntityImpl();
+            taskEntity.setCreateTime(new Date());
+            taskEntity.setProcessDefinitionId(t.getProcessDefinitionId());
+            taskEntity.setTaskDefinitionKey(t.getTaskDefinitionKey());
+            taskEntity.setProcessInstanceId(t.getProcessInstanceId());
+            taskEntity.setExecutionId(newExecution.getId());
+            taskEntity.setName(newTask.getName());
+            String taskId = idGenerator.getNextId();
+            taskEntity.setId(taskId);
+            taskEntity.setExecution(newExecution);
+            taskEntity.setAssignee(assignee);
+            taskEntity.setRevision(0);
+            taskService.saveTask(taskEntity);
+            Integer loopCounter = getLoopVariable(newExecution, "nrOfInstances");
+            Integer nrOfActiveInstances = getLoopVariable(newExecution, "nrOfActiveInstances");
+            setLoopVariable(newExecution, "nrOfInstances", loopCounter + 1);
+            setLoopVariable(newExecution, "nrOfActiveInstances", nrOfActiveInstances + 1);
+            HistoricTaskInstanceEntity historicTaskInstanceEntity = commandContext.getHistoricTaskInstanceEntityManager().create(taskEntity, newExecution);
+            commandContext.getHistoricTaskInstanceEntityManager().insert(historicTaskInstanceEntity);
+            return null;
+        }
+    }
+
+    public static void setLoopVariable(ExecutionEntity execution, String variableName, Object value) {
+        // 获取执行实例的父级
+        ExecutionEntity parent = execution.getParent();
+        parent.setVariableLocal(variableName, value);
+    }
+
+    public static Integer getLoopVariable(ExecutionEntity execution, String variableName) {
+        Object value = execution.getVariableLocal(variableName);
+        ExecutionEntity parent = execution.getParent();
+        while (value == null && parent != null) {
+            value = parent.getVariableLocal(variableName);
+            parent = parent.getParent();
+        }
+        return (Integer) (value != null ? value : 0);
     }
 
 }
