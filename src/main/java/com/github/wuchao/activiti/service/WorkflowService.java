@@ -103,6 +103,92 @@ public class WorkflowService {
         return null;
     }
 
+    /**
+     * 获取当前 Task（当当前Task为会签任务时，查出来的Task是一个List集合，这里会报错）
+     *
+     * @param businessKey
+     * @return
+     */
+    public ActivitiTaskDTO getCurrentTaskDTOByBusinessKey(String businessKey) {
+        Task task = taskService.createTaskQuery()
+                .processInstanceBusinessKey(businessKey)
+                .includeProcessVariables()
+                .includeTaskLocalVariables()
+                .singleResult();
+        return task != null ? ActivitiTaskDTO.init(task) : null;
+    }
+
+    public Task getCurrentTaskByBusinessKeyAndTaskAssignee(String businessKey, String assignee) {
+        return taskService.createTaskQuery()
+                .processInstanceBusinessKey(businessKey)
+                .taskAssignee(assignee)
+                .includeProcessVariables()
+                .includeTaskLocalVariables()
+                .singleResult();
+    }
+
+    public ActivitiTaskDTO getCurrentTaskDTOByBusinessKeyAndTaskAssignee(String businessKey, String assignee) {
+        Task task = taskService.createTaskQuery()
+                .processInstanceBusinessKey(businessKey)
+                .taskAssignee(assignee)
+                .includeProcessVariables()
+                .includeTaskLocalVariables()
+                .singleResult();
+        return task != null ? ActivitiTaskDTO.init(task) : null;
+    }
+
+    /**
+     * 获取当前 Task
+     *
+     * @param businessKey
+     * @param taskDefinitionKey
+     * @return
+     */
+    public Task getCurrentTaskByBusinessKeyAndTaskDefinitionKey(String businessKey, String taskDefinitionKey) {
+        return taskService.createTaskQuery()
+                .processInstanceBusinessKey(businessKey)
+                .taskDefinitionKey(taskDefinitionKey)
+                .includeProcessVariables()
+                .includeTaskLocalVariables()
+                .singleResult();
+    }
+
+    /**
+     * 获取所有处于当前任务的流程任务
+     *
+     * @param taskDefinitionKey
+     * @return
+     */
+    public List getAllTasksByTaskDefinitionKey(String taskDefinitionKey, String assignee) {
+        return taskService.createTaskQuery()
+                .taskDefinitionKey(taskDefinitionKey)
+                .taskAssignee(assignee)
+                .includeProcessVariables()
+                .includeTaskLocalVariables()
+                .list();
+    }
+
+    /**
+     * 获取所有处于当前任务（包括历史任务）的流程任务
+     *
+     * @param taskDefinitionKey
+     * @param assignee
+     * @return
+     */
+    public List getAllHistoricTasksByTaskDefinitionKey(String taskDefinitionKey, String assignee) {
+        List<HistoricTaskInstance> historicTaskInstances = historyService.createHistoricTaskInstanceQuery()
+                .taskDefinitionKey(taskDefinitionKey)
+                .taskAssignee(assignee)
+                .includeProcessVariables()
+                .includeTaskLocalVariables()
+                .list();
+        if (CollectionUtils.isNotEmpty(historicTaskInstances)) {
+            return historicTaskInstances.stream().map(historicTaskInstance -> ActivitiTaskDTO.init(historicTaskInstance)).collect(Collectors.toList());
+        } else {
+            return null;
+        }
+    }
+
     // https://www.cnblogs.com/laoxia/p/9761277.html
     // 使用 setAssignee 或 setAssignee + setOwner 是用来转办任务的，和原来的转办人没有任何关系了
 
@@ -256,8 +342,8 @@ public class WorkflowService {
      * https://blog.csdn.net/taisuiyu6397/article/details/89448217
      * https://blog.csdn.net/qq_29374433/article/details/80922795
      *
-     * @param taskId
-     * @param destinationTaskDefinitionKey 打回到的目标任务节点的 taskDefinitionKey
+     * @param taskId                       当前任务的 taskId
+     * @param destinationTaskDefinitionKey 打回操作目标任务节点的 taskDefinitionKey
      */
     @Transactional(rollbackFor = Exception.class)
     public void reverse(String taskId, String destinationTaskDefinitionKey) {
