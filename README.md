@@ -72,5 +72,7 @@ Activiti 工作流总共包含 23 张数据表，这些表的表名默认以 `AC
 
 画好流程图后，导出到项目资源文件夹下的 `processes` 文件夹中（Activiti 默认目录），重命名为 `leave.bpmn`。
 
-参考：  
+参考：
+> [Activiti 数据库表结构](https://www.devdoc.cn/activiti-table-summary.html)
+> 
 > [Activiti工作流引擎使用](https://blog.csdn.net/xwnxwn/article/details/52303862)
